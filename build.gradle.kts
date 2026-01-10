@@ -1,7 +1,7 @@
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "2.1.0"
-    id("org.jetbrains.intellij.platform") version "2.3.0"
+    id("org.jetbrains.kotlin.jvm") version "2.3.0"
+    id("org.jetbrains.intellij.platform") version "2.10.5"
 }
 
 group = providers.gradleProperty("pluginGroup").get()
@@ -15,13 +15,14 @@ repositories {
 }
 
 // Use Java toolchain for consistent JDK version
+// Must target JDK 21 as that's what IntelliJ IDEA 2025.3 uses internally
 kotlin {
     jvmToolchain(21)
 }
 
 dependencies {
     intellijPlatform {
-        intellijIdeaUltimate("2025.3")
+        intellijIdeaUltimate("2025.3.1")
 
         // Git4Idea bundled plugin for Git integration
         bundledPlugin("Git4Idea")
