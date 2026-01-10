@@ -1,0 +1,60 @@
+<idea-plugin>
+    <id>com.github.ccustine.worktree-manager</id>
+    <name>Worktree Manager</name>
+    <vendor email="ccustine@github.com" url="https://github.com/ccustine">ccustine</vendor>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>Git4Idea</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Project-level service for worktree operations -->
+        <projectService
+            serviceInterface="com.github.ccustine.worktree.services.WorktreeService"
+            serviceImplementation="com.github.ccustine.worktree.services.WorktreeServiceImpl"/>
+
+        <!-- Application-level service for tracking open worktree windows -->
+        <applicationService
+            serviceInterface="com.github.ccustine.worktree.services.WorktreeWindowService"
+            serviceImplementation="com.github.ccustine.worktree.services.WorktreeWindowServiceImpl"/>
+
+        <!-- Project name decorator for worktree indicator -->
+        <projectViewNodeDecorator
+            implementation="com.github.ccustine.worktree.ui.WorktreeProjectNameDecorator"/>
+    </extensions>
+
+    <actions>
+        <!-- Worktree action group added to Git menu -->
+        <group id="WorktreeManager.MainGroup"
+               text="Worktrees"
+               description="Git worktree management"
+               popup="true">
+
+            <add-to-group group-id="Git.MainMenu"
+                          anchor="after"
+                          relative-to-action="Git.Show.WorkingTrees"/>
+
+            <action id="WorktreeManager.Create"
+                    class="com.github.ccustine.worktree.actions.CreateWorktreeAction"
+                    text="Create Worktree..."
+                    description="Create a new git worktree"/>
+
+            <action id="WorktreeManager.Open"
+                    class="com.github.ccustine.worktree.actions.OpenWorktreeAction"
+                    text="Open Worktree..."
+                    description="Open an existing worktree in a new window"/>
+
+            <action id="WorktreeManager.Remove"
+                    class="com.github.ccustine.worktree.actions.RemoveWorktreeAction"
+                    text="Remove Worktree..."
+                    description="Remove an existing worktree"/>
+
+            <separator/>
+
+            <group id="WorktreeManager.SwitchGroup"
+                   class="com.github.ccustine.worktree.actions.SwitchWorktreeActionGroup"
+                   text="Switch to Worktree"
+                   description="Switch to another worktree"
+                   popup="true"/>
+        </group>
+    </actions>
+</idea-plugin>
