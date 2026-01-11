@@ -20,6 +20,13 @@
         <!-- Project name decorator for worktree indicator -->
         <projectViewNodeDecorator
             implementation="com.github.ccustine.worktree.ui.WorktreeProjectNameDecorator"/>
+
+        <!-- Settings configurable under Version Control -->
+        <projectConfigurable
+            parentId="vcs"
+            instance="com.github.ccustine.worktree.settings.WorktreeConfigurable"
+            id="com.github.ccustine.worktree.settings"
+            displayName="Worktree Manager"/>
     </extensions>
 
     <actions>
@@ -60,5 +67,22 @@
                    description="Switch to another worktree"
                    popup="true"/>
         </group>
+
+        <!-- Top-level context menu actions for worktree folders -->
+        <action id="WorktreeManager.OpenFolder"
+                class="com.github.ccustine.worktree.actions.OpenWorktreeFolderAction"
+                text="Open Worktree in New Window"
+                description="Open this worktree in a new IDE window"
+                icon="AllIcons.Actions.OpenNewTab">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="first"/>
+        </action>
+
+        <action id="WorktreeManager.RemoveFolder"
+                class="com.github.ccustine.worktree.actions.RemoveWorktreeFolderAction"
+                text="Remove Worktree"
+                description="Remove this worktree"
+                icon="AllIcons.Actions.GC">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="WorktreeManager.OpenFolder"/>
+        </action>
     </actions>
 </idea-plugin>

@@ -40,9 +40,18 @@ class WorktreeWindowServiceImpl : WorktreeWindowService {
     }
 
     override fun isWorktreeOpen(path: Path): Boolean {
-        val project = openWorktrees[path] ?: return false
-        // Verify the project is still open
-        return !project.isDisposed
+        // First check our cache
+        val cachedProject = openWorktrees[path]
+        if (cachedProject != null && !cachedProject.isDisposed) {
+            return true
+        }
+
+        // Also check open projects directly in case cache is stale
+        val normalizedPath = path.toAbsolutePath().normalize()
+        return ProjectManager.getInstance().openProjects.any { project ->
+            val projectPath = project.basePath?.let { Path.of(it).toAbsolutePath().normalize() }
+            projectPath == normalizedPath && !project.isDisposed
+        }
     }
 
     override fun getOpenWorktreeProject(path: Path): Project? {

@@ -6,6 +6,7 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vcs.ProjectLevelVcsManager
 import git4idea.commands.Git
 import git4idea.commands.GitCommand
 import git4idea.commands.GitLineHandler
@@ -14,6 +15,7 @@ import java.nio.file.Path
 import java.util.concurrent.Callable
 import java.util.concurrent.Future
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.io.path.createDirectories
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 
@@ -251,6 +253,16 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
 
         val root = repository.root
 
+        // Create parent directory structure if it doesn't exist
+        val parentDir = path.parent
+        if (parentDir != null && !parentDir.exists()) {
+            try {
+                parentDir.createDirectories()
+            } catch (e: Exception) {
+                return Result.failure(RuntimeException("Failed to create directory structure: ${e.message}"))
+            }
+        }
+
         val args = mutableListOf("add")
         if (createBranch) {
             args.addAll(listOf("-b", branch))
@@ -267,7 +279,6 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
         }
 
         // Refresh VFS synchronously to show the new directory immediately
-        val parentDir = path.parent
         if (parentDir != null) {
             com.intellij.openapi.vfs.VfsUtil.markDirtyAndRefresh(false, true, true, parentDir.toFile())
         }
@@ -300,6 +311,9 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
         // Invalidate cache after modification
         invalidateCache()
 
+        // Clean up VCS directory mapping for the removed worktree
+        removeVcsMapping(path)
+
         // Refresh VFS synchronously to reflect the removed directory immediately
         val parentDir = path.parent
         if (parentDir != null) {
@@ -308,6 +322,28 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
         }
 
         return Result.success(Unit)
+    }
+
+    private fun removeVcsMapping(worktreePath: Path) {
+        try {
+            val vcsManager = ProjectLevelVcsManager.getInstance(project)
+            val currentMappings = vcsManager.directoryMappings
+            val pathString = worktreePath.toString()
+
+            // Filter out any mappings that point to the removed worktree
+            val updatedMappings = currentMappings.filter { mapping ->
+                !mapping.directory.equals(pathString, ignoreCase = true) &&
+                !mapping.directory.startsWith("$pathString/") &&
+                !mapping.directory.startsWith("$pathString\\")
+            }
+
+            if (updatedMappings.size != currentMappings.size) {
+                vcsManager.directoryMappings = updatedMappings
+                logger.info("Removed VCS mapping for worktree: $pathString")
+            }
+        } catch (e: Exception) {
+            logger.warn("Failed to remove VCS mapping for worktree: ${e.message}")
+        }
     }
 
     override fun getWorktreeInfo(path: Path): WorktreeInfo? {
@@ -327,11 +363,19 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
 
     override fun getDefaultWorktreePath(branchName: String): Path? {
         val mainPath = getMainRepositoryPath() ?: return null
+        val settings = com.github.ccustine.worktree.settings.WorktreeSettings.getInstance(project)
+        val configuredDir = settings.defaultWorktreeDirectory
+        // Use .worktrees as fallback if setting is empty or blank
+        val worktreeDir = if (configuredDir.isNullOrBlank()) {
+            com.github.ccustine.worktree.settings.WorktreeSettings.DEFAULT_WORKTREE_DIRECTORY
+        } else {
+            configuredDir
+        }
         val sanitizedBranch = branchName
             .replace("/", "-")
             .replace("\\", "-")
             .replace(" ", "-")
-        return mainPath.resolve(".worktrees").resolve(sanitizedBranch)
+        return mainPath.resolve(worktreeDir).resolve(sanitizedBranch)
     }
 
     override fun hasUncommittedChanges(path: Path): Boolean {
