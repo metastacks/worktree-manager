@@ -269,7 +269,7 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
         // Refresh VFS synchronously to show the new directory immediately
         val parentDir = path.parent
         if (parentDir != null) {
-            LocalFileSystem.getInstance().findFileByNioFile(parentDir)?.refresh(false, true)
+            com.intellij.openapi.vfs.VfsUtil.markDirtyAndRefresh(false, true, true, parentDir.toFile())
         }
 
         // Force synchronous cache refresh after modification to get the new worktree
@@ -303,7 +303,8 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
         // Refresh VFS synchronously to reflect the removed directory immediately
         val parentDir = path.parent
         if (parentDir != null) {
-            LocalFileSystem.getInstance().findFileByNioFile(parentDir)?.refresh(false, true)
+            // Mark dirty and force refresh to ensure filesystem is rescanned
+            com.intellij.openapi.vfs.VfsUtil.markDirtyAndRefresh(false, true, true, parentDir.toFile())
         }
 
         return Result.success(Unit)
