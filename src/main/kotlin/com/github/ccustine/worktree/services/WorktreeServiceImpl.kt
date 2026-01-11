@@ -1,58 +1,142 @@
 package com.github.ccustine.worktree.services
 
-import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.process.CapturingProcessHandler
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
-import git4idea.config.GitExecutableManager
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
+import git4idea.commands.Git
+import git4idea.commands.GitCommand
+import git4idea.commands.GitLineHandler
 import git4idea.repo.GitRepositoryManager
 import java.nio.file.Path
+import java.util.concurrent.Callable
+import java.util.concurrent.Future
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 
-class WorktreeServiceImpl(private val project: Project) : WorktreeService {
+class WorktreeServiceImpl(private val project: Project) : WorktreeService, Disposable {
 
     private val logger = Logger.getInstance(WorktreeServiceImpl::class.java)
 
     private val repositoryManager: GitRepositoryManager
         get() = GitRepositoryManager.getInstance(project)
 
-    private fun getGitExecutable(): String {
-        return GitExecutableManager.getInstance().getExecutable(project).exePath
+    private val git: Git
+        get() = Git.getInstance()
+
+    // Cache for worktree list to avoid blocking UI during frequent update() calls
+    private val worktreeCache = AtomicReference<CachedWorktrees?>(null)
+
+    private data class CachedWorktrees(
+        val worktrees: List<WorktreeInfo>,
+        val timestamp: Long
+    ) {
+        fun isExpired(): Boolean = System.currentTimeMillis() - timestamp > CACHE_TTL_MS
     }
 
-    private fun runGitCommand(workDir: Path, vararg args: String): Pair<Boolean, List<String>> {
-        val commandLine = GeneralCommandLine()
-            .withExePath(getGitExecutable())
-            .withWorkDirectory(workDir.toFile())
-            .withParameters(*args)
+    companion object {
+        private const val CACHE_TTL_MS = 5000L // 5 seconds
+    }
 
-        return try {
-            val handler = CapturingProcessHandler(commandLine)
-            val result = handler.runProcess(30000)  // 30 second timeout
-
-            if (result.exitCode == 0) {
-                Pair(true, result.stdoutLines)
-            } else {
-                logger.warn("Git command failed: ${result.stderr}")
-                Pair(false, result.stderrLines)
-            }
-        } catch (e: Exception) {
-            logger.error("Failed to execute git command", e)
-            Pair(false, listOf(e.message ?: "Unknown error"))
+    /**
+     * Runs a computation on a pooled thread and returns the result.
+     * If already on a background thread, runs directly.
+     */
+    private fun <T> runInBackground(computation: () -> T): T {
+        return if (ApplicationManager.getApplication().isDispatchThread ||
+                   ApplicationManager.getApplication().isReadAccessAllowed) {
+            // On EDT or in ReadAction - run on pooled thread and wait
+            val future: Future<T> = ApplicationManager.getApplication().executeOnPooledThread(Callable { computation() })
+            future.get()
+        } else {
+            // Already on background thread with no read lock
+            computation()
         }
     }
 
-    override fun listWorktrees(): List<WorktreeInfo> {
-        val repository = repositoryManager.repositories.firstOrNull() ?: return emptyList()
-        val root = repository.root.toNioPath()
+    private fun runGitCommand(workDir: VirtualFile, command: GitCommand, vararg args: String): Pair<Boolean, List<String>> {
+        return runInBackground {
+            val handler = GitLineHandler(project, workDir, command)
+            handler.addParameters(*args)
 
-        val (success, output) = runGitCommand(root, "worktree", "list", "--porcelain")
+            try {
+                val result = git.runCommand(handler)
+                if (result.success()) {
+                    Pair(true, result.output)
+                } else {
+                    logger.warn("Git command failed: ${result.errorOutputAsJoinedString}")
+                    Pair(false, result.errorOutput)
+                }
+            } catch (e: Exception) {
+                logger.error("Failed to execute git command", e)
+                Pair(false, listOf(e.message ?: "Unknown error"))
+            }
+        }
+    }
+
+    private fun pathToVirtualFile(path: Path): VirtualFile? {
+        return LocalFileSystem.getInstance().findFileByNioFile(path)
+    }
+
+    override fun listWorktrees(): List<WorktreeInfo> {
+        // Check cache first
+        val cached = worktreeCache.get()
+        if (cached != null && !cached.isExpired()) {
+            return cached.worktrees
+        }
+
+        // If on EDT or in ReadAction, never block - return stale/empty cache and refresh async
+        if (ApplicationManager.getApplication().isDispatchThread ||
+            ApplicationManager.getApplication().isReadAccessAllowed) {
+            refreshWorktreeCacheAsync()
+            return cached?.worktrees ?: emptyList()
+        }
+
+        return refreshWorktreeCache()
+    }
+
+    override fun getCachedWorktrees(): List<WorktreeInfo>? {
+        val cached = worktreeCache.get()
+        if (cached == null) {
+            // No cache yet - trigger background refresh but don't block
+            refreshWorktreeCacheAsync()
+            return null
+        }
+        if (cached.isExpired()) {
+            // Cache expired - trigger background refresh
+            refreshWorktreeCacheAsync()
+        }
+        return cached.worktrees
+    }
+
+    private fun refreshWorktreeCache(): List<WorktreeInfo> {
+        val repository = repositoryManager.repositories.firstOrNull() ?: return emptyList()
+        val root = repository.root
+
+        val (success, output) = runGitCommand(root, GitCommand.WORKTREE, "list", "--porcelain")
         if (!success) {
             return emptyList()
         }
 
-        return parseWorktreeList(output)
+        val worktrees = parseWorktreeList(output)
+        worktreeCache.set(CachedWorktrees(worktrees, System.currentTimeMillis()))
+        return worktrees
+    }
+
+    private fun refreshWorktreeCacheAsync() {
+        ApplicationManager.getApplication().executeOnPooledThread {
+            refreshWorktreeCache()
+        }
+    }
+
+    /**
+     * Force refresh of the worktree cache. Call after create/remove operations.
+     */
+    fun invalidateCache() {
+        worktreeCache.set(null)
     }
 
     private fun parseWorktreeList(output: List<String>): List<WorktreeInfo> {
@@ -74,8 +158,10 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService {
                                     branch = currentBranch,
                                     commitHash = commit,
                                     isMain = isMain,
-                                    isDirty = hasUncommittedChanges(path),
-                                    hasUnpushedCommits = hasUnpushedCommits(path)
+                                    // Don't block on status checks - default to false
+                                    // Status will be populated asynchronously if needed
+                                    isDirty = false,
+                                    hasUnpushedCommits = false
                                 )
                             )
                         }
@@ -113,8 +199,9 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService {
                         branch = currentBranch,
                         commitHash = commit,
                         isMain = isMain || worktrees.isEmpty(),
-                        isDirty = hasUncommittedChanges(path),
-                        hasUnpushedCommits = hasUnpushedCommits(path)
+                        // Don't block on status checks - default to false
+                        isDirty = false,
+                        hasUnpushedCommits = false
                     )
                 )
             }
@@ -123,13 +210,48 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService {
         return worktrees
     }
 
+    // Internal check methods that don't trigger cache
+    private fun checkUncommittedChanges(path: Path): Boolean {
+        if (!path.exists() || !path.isDirectory()) return false
+        val vFile = pathToVirtualFile(path) ?: return false
+
+        return runInBackground {
+            val handler = GitLineHandler(project, vFile, GitCommand.STATUS)
+            handler.addParameters("--porcelain")
+
+            try {
+                val result = git.runCommand(handler)
+                result.success() && result.output.isNotEmpty()
+            } catch (e: Exception) {
+                false
+            }
+        }
+    }
+
+    private fun checkUnpushedCommits(path: Path): Boolean {
+        if (!path.exists() || !path.isDirectory()) return false
+        val vFile = pathToVirtualFile(path) ?: return false
+
+        return runInBackground {
+            val handler = GitLineHandler(project, vFile, GitCommand.LOG)
+            handler.addParameters("@{u}..HEAD", "--oneline")
+
+            try {
+                val result = git.runCommand(handler)
+                result.success() && result.output.isNotEmpty()
+            } catch (e: Exception) {
+                false
+            }
+        }
+    }
+
     override fun createWorktree(branch: String, path: Path, createBranch: Boolean): Result<WorktreeInfo> {
         val repository = repositoryManager.repositories.firstOrNull()
             ?: return Result.failure(IllegalStateException("No git repository found"))
 
-        val root = repository.root.toNioPath()
+        val root = repository.root
 
-        val args = mutableListOf("worktree", "add")
+        val args = mutableListOf("add")
         if (createBranch) {
             args.addAll(listOf("-b", branch))
         }
@@ -138,13 +260,22 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService {
             args.add(branch)
         }
 
-        val (success, output) = runGitCommand(root, *args.toTypedArray())
+        val (success, output) = runGitCommand(root, GitCommand.WORKTREE, *args.toTypedArray())
         if (!success) {
             val error = output.joinToString("\n")
             return Result.failure(RuntimeException(error))
         }
 
-        return getWorktreeInfo(path)?.let { Result.success(it) }
+        // Refresh VFS synchronously to show the new directory immediately
+        val parentDir = path.parent
+        if (parentDir != null) {
+            LocalFileSystem.getInstance().findFileByNioFile(parentDir)?.refresh(false, true)
+        }
+
+        // Force synchronous cache refresh after modification to get the new worktree
+        val worktrees = refreshWorktreeCache()
+
+        return worktrees.find { it.path == path }?.let { Result.success(it) }
             ?: Result.failure(RuntimeException("Worktree created but could not retrieve info"))
     }
 
@@ -152,18 +283,27 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService {
         val repository = repositoryManager.repositories.firstOrNull()
             ?: return Result.failure(IllegalStateException("No git repository found"))
 
-        val root = repository.root.toNioPath()
+        val root = repository.root
 
-        val args = mutableListOf("worktree", "remove")
+        val args = mutableListOf("remove")
         if (force) {
             args.add("--force")
         }
         args.add(path.toString())
 
-        val (success, output) = runGitCommand(root, *args.toTypedArray())
+        val (success, output) = runGitCommand(root, GitCommand.WORKTREE, *args.toTypedArray())
         if (!success) {
             val error = output.joinToString("\n")
             return Result.failure(RuntimeException(error))
+        }
+
+        // Invalidate cache after modification
+        invalidateCache()
+
+        // Refresh VFS synchronously to reflect the removed directory immediately
+        val parentDir = path.parent
+        if (parentDir != null) {
+            LocalFileSystem.getInstance().findFileByNioFile(parentDir)?.refresh(false, true)
         }
 
         return Result.success(Unit)
@@ -196,15 +336,21 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService {
     override fun hasUncommittedChanges(path: Path): Boolean {
         if (!path.exists() || !path.isDirectory()) return false
 
-        val (success, output) = runGitCommand(path, "status", "--porcelain")
+        val vFile = pathToVirtualFile(path) ?: return false
+        val (success, output) = runGitCommand(vFile, GitCommand.STATUS, "--porcelain")
         return success && output.isNotEmpty()
     }
 
     override fun hasUnpushedCommits(path: Path): Boolean {
         if (!path.exists() || !path.isDirectory()) return false
 
-        val (success, output) = runGitCommand(path, "log", "@{u}..HEAD", "--oneline")
+        val vFile = pathToVirtualFile(path) ?: return false
+        val (success, output) = runGitCommand(vFile, GitCommand.LOG, "@{u}..HEAD", "--oneline")
         // If command fails (e.g., no upstream), we can't determine unpushed status
         return success && output.isNotEmpty()
+    }
+
+    override fun dispose() {
+        worktreeCache.set(null)
     }
 }

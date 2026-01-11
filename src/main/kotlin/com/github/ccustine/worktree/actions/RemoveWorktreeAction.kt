@@ -35,38 +35,55 @@ class RemoveWorktreeAction : AnAction(), DumbAware {
             worktrees = worktrees,
             windowService = windowService,
             actionButtonText = "Remove",
-            showStatus = true
+            showStatus = true,
+            allowMultiSelect = true
         )
 
         if (dialog.showAndGet()) {
-            val selectedWorktree = dialog.selectedWorktree ?: return
+            val selectedWorktrees = dialog.selectedWorktrees
+            if (selectedWorktrees.isEmpty()) return
 
-            // Safety checks
-            if (!performSafetyChecks(project, selectedWorktree, windowService)) {
-                return
+            // Confirm if multiple selected
+            if (selectedWorktrees.size > 1) {
+                val confirm = Messages.showYesNoDialog(
+                    project,
+                    "Remove ${selectedWorktrees.size} worktrees?",
+                    "Confirm Removal",
+                    "Remove All",
+                    "Cancel",
+                    Messages.getQuestionIcon()
+                )
+                if (confirm != Messages.YES) return
             }
 
-            val result = service.removeWorktree(selectedWorktree.path, force = false)
-            result.onFailure { error ->
-                // If it failed due to uncommitted changes, offer force removal
-                val forceRemove = Messages.showYesNoDialog(
-                    project,
-                    "Failed to remove worktree: ${error.message}\n\nDo you want to force removal?",
-                    "Remove Worktree",
-                    "Force Remove",
-                    "Cancel",
-                    Messages.getWarningIcon()
-                )
+            for (selectedWorktree in selectedWorktrees) {
+                // Safety checks
+                if (!performSafetyChecks(project, selectedWorktree, windowService)) {
+                    continue
+                }
 
-                if (forceRemove == Messages.YES) {
-                    service.removeWorktree(selectedWorktree.path, force = true)
-                        .onFailure { forceError ->
-                            Messages.showErrorDialog(
-                                project,
-                                "Failed to force remove worktree: ${forceError.message}",
-                                "Remove Failed"
-                            )
-                        }
+                val result = service.removeWorktree(selectedWorktree.path, force = false)
+                result.onFailure { error ->
+                    // If it failed due to uncommitted changes, offer force removal
+                    val forceRemove = Messages.showYesNoDialog(
+                        project,
+                        "Failed to remove worktree '${selectedWorktree.displayName}': ${error.message}\n\nDo you want to force removal?",
+                        "Remove Worktree",
+                        "Force Remove",
+                        "Cancel",
+                        Messages.getWarningIcon()
+                    )
+
+                    if (forceRemove == Messages.YES) {
+                        service.removeWorktree(selectedWorktree.path, force = true)
+                            .onFailure { forceError ->
+                                Messages.showErrorDialog(
+                                    project,
+                                    "Failed to force remove worktree '${selectedWorktree.displayName}': ${forceError.message}",
+                                    "Remove Failed"
+                                )
+                            }
+                    }
                 }
             }
         }

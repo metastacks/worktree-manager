@@ -30,7 +30,7 @@ IntelliJ IDEA plugin for managing git worktrees from within the IDE. Enables cre
 ### Service Layer (project-scoped and app-scoped singletons)
 
 - **WorktreeService** (`services/WorktreeService.kt`) - Project-level service interface wrapping git worktree CLI commands. Use `WorktreeService.getInstance(project)` to obtain.
-- **WorktreeServiceImpl** - Implementation that shells out to git executable via `GeneralCommandLine`/`CapturingProcessHandler`. Parses `git worktree list --porcelain` output.
+- **WorktreeServiceImpl** - Implementation using Git4Idea's `Git.runCommand()` with `GitLineHandler`. Parses `git worktree list --porcelain` output. Includes caching with 5-second TTL and background thread execution to avoid blocking EDT.
 - **WorktreeWindowService** - Application-level service tracking which worktrees are open across all IDE windows.
 
 ### Actions (`actions/`)
@@ -67,9 +67,11 @@ All services and actions registered in `src/main/resources/META-INF/plugin.xml`.
 ## Key Patterns
 
 - Actions check `GitRepositoryManager.getInstance(project).repositories.isNotEmpty()` for visibility
-- Git commands run via `GeneralCommandLine` with `GitExecutableManager.getInstance().getExecutable(project).exePath`
+- Git commands run via Git4Idea's `Git.getInstance().runCommand()` with `GitLineHandler` and `GitCommand` constants (e.g., `GitCommand.WORKTREE`, `GitCommand.STATUS`)
 - New worktrees default to `.worktrees/<sanitized-branch-name>` under main repo
 - Services obtained via `project.getService()` or companion object helpers
+- Threading: Use `ApplicationManager.getApplication().executeOnPooledThread()` to avoid blocking EDT/ReadAction when running git commands
+- Caching: WorktreeServiceImpl caches worktree list with TTL to avoid repeated blocking calls during UI updates
 
 ## Target Platform
 

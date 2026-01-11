@@ -33,6 +33,10 @@
                           anchor="after"
                           relative-to-action="Git.Show.WorkingTrees"/>
 
+            <!-- Also add to Project View context menu -->
+            <add-to-group group-id="ProjectViewPopupMenu"
+                          anchor="last"/>
+
             <action id="WorktreeManager.Create"
                     class="com.github.ccustine.worktree.actions.CreateWorktreeAction"
                     text="Create Worktree..."

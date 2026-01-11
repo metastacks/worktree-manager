@@ -21,13 +21,17 @@ class WorktreeListDialog(
     private val worktrees: List<WorktreeInfo>,
     private val windowService: WorktreeWindowService,
     actionButtonText: String,
-    private val showStatus: Boolean = false
+    private val showStatus: Boolean = false,
+    private val allowMultiSelect: Boolean = false
 ) : DialogWrapper(project) {
 
     private val tableModel = WorktreeTableModel(worktrees, windowService, showStatus)
     private val table = JBTable(tableModel)
 
     var selectedWorktree: WorktreeInfo? = null
+        private set
+
+    var selectedWorktrees: List<WorktreeInfo> = emptyList()
         private set
 
     init {
@@ -38,7 +42,11 @@ class WorktreeListDialog(
     }
 
     private fun setupTable() {
-        table.selectionModel.selectionMode = ListSelectionModel.SINGLE_SELECTION
+        table.selectionModel.selectionMode = if (allowMultiSelect) {
+            ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
+        } else {
+            ListSelectionModel.SINGLE_SELECTION
+        }
         table.setShowGrid(false)
         table.rowHeight = 24
 
@@ -98,9 +106,10 @@ class WorktreeListDialog(
     }
 
     override fun doOKAction() {
-        val selectedRow = table.selectedRow
-        if (selectedRow >= 0) {
-            selectedWorktree = worktrees[selectedRow]
+        val selectedRows = table.selectedRows
+        if (selectedRows.isNotEmpty()) {
+            selectedWorktrees = selectedRows.map { worktrees[it] }
+            selectedWorktree = selectedWorktrees.firstOrNull()
         }
         super.doOKAction()
     }

@@ -3,12 +3,13 @@ package com.github.ccustine.worktree.actions
 import com.github.ccustine.worktree.services.WorktreeInfo
 import com.github.ccustine.worktree.services.WorktreeService
 import com.github.ccustine.worktree.services.WorktreeWindowService
+import com.intellij.ide.impl.OpenProjectTask
+import com.intellij.ide.impl.ProjectUtil
 import com.intellij.openapi.actionSystem.ActionGroup
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.wm.WindowManager
 import git4idea.repo.GitRepositoryManager
 import java.nio.file.Path
@@ -80,7 +81,11 @@ class SwitchToWorktreeAction(
         }
 
         // Open the worktree project
-        ProjectManager.getInstance().loadAndOpenProject(worktree.path.toString())
+        val options = OpenProjectTask {
+            forceOpenInNewFrame = true
+            projectToClose = null
+        }
+        ProjectUtil.openOrImport(worktree.path, options)
     }
 
     override fun update(e: AnActionEvent) {

@@ -10,8 +10,16 @@ interface WorktreeService {
 
     /**
      * Lists all worktrees for the current repository.
+     * May block to refresh the cache if needed.
      */
     fun listWorktrees(): List<WorktreeInfo>
+
+    /**
+     * Returns cached worktree list without blocking.
+     * Returns null if no cache is available yet.
+     * Use this for UI code that cannot block.
+     */
+    fun getCachedWorktrees(): List<WorktreeInfo>?
 
     /**
      * Creates a new worktree.

@@ -2,12 +2,14 @@ package com.github.ccustine.worktree.actions
 
 import com.github.ccustine.worktree.services.WorktreeService
 import com.github.ccustine.worktree.ui.CreateWorktreeDialog
+import com.intellij.ide.impl.OpenProjectTask
+import com.intellij.ide.impl.ProjectUtil
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.ProjectManager
 import git4idea.repo.GitRepositoryManager
+import java.nio.file.Path
 
 class CreateWorktreeAction : AnAction(), DumbAware {
 
@@ -48,6 +50,10 @@ class CreateWorktreeAction : AnAction(), DumbAware {
     }
 
     private fun openProject(path: String) {
-        ProjectManager.getInstance().loadAndOpenProject(path)
+        val options = OpenProjectTask {
+            forceOpenInNewFrame = true
+            projectToClose = null
+        }
+        ProjectUtil.openOrImport(Path.of(path), options)
     }
 }

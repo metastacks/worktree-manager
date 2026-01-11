@@ -31,14 +31,16 @@ class WorktreeProjectNameDecorator : ProjectViewNodeDecorator {
         // Check if project has Git
         if (!hasGitRepository(project)) return
 
-        // Check if this is a worktree
+        // Use non-blocking cached worktree data only
         val worktreeService = WorktreeService.getInstance(project)
-        if (!worktreeService.isWorktree()) return
+        val worktrees = worktreeService.getCachedWorktrees() ?: return
 
-        // Get the current worktree info
+        // Find current worktree
         val currentPath = Path.of(projectPath)
-        val worktrees = worktreeService.listWorktrees()
         val currentWorktree = worktrees.find { it.path == currentPath } ?: return
+
+        // Only decorate if this is a non-main worktree
+        if (currentWorktree.isMain) return
 
         // Add decoration
         val branchName = currentWorktree.branch ?: "detached"

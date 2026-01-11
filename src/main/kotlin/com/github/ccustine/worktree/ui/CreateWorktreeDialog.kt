@@ -12,6 +12,7 @@ import com.intellij.ui.components.JBRadioButton
 import com.intellij.ui.components.JBTextField
 import git4idea.branch.GitBranchUtil
 import git4idea.repo.GitRepositoryManager
+import java.awt.Dimension
 import java.awt.GridBagConstraints
 import java.awt.GridBagLayout
 import java.awt.Insets
@@ -105,6 +106,9 @@ class CreateWorktreeDialog(private val project: Project) : DialogWrapper(project
         // Checkbox
         gbc.gridx = 0; gbc.gridy = 5; gbc.gridwidth = 2
         panel.add(openAfterCreationCheckbox, gbc)
+
+        // Set preferred width (~30% wider than default)
+        panel.preferredSize = Dimension(550, panel.preferredSize.height)
 
         return panel
     }
