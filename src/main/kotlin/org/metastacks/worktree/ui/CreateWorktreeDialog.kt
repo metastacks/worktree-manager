@@ -63,10 +63,10 @@ class CreateWorktreeDialog(private val project: Project) : DialogWrapper(project
         }
 
         pathField.addBrowseFolderListener(
-            "Select Worktree Location",
-            "Choose the directory for the new worktree",
             project,
             FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                .withTitle("Select Worktree Location")
+                .withDescription("Choose the directory for the new worktree")
         )
 
         val panel = JPanel(GridBagLayout())

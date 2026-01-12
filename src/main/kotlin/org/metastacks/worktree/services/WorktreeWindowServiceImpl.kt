@@ -3,35 +3,12 @@ package org.metastacks.worktree.services
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
-import com.intellij.openapi.project.ProjectManagerListener
-import com.intellij.openapi.util.Disposer
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
 class WorktreeWindowServiceImpl : WorktreeWindowService, Disposable {
 
     private val openWorktrees = ConcurrentHashMap<Path, Project>()
-
-    init {
-        // Listen for project open/close events
-        ProjectManager.getInstance().addProjectManagerListener(object : ProjectManagerListener {
-            override fun projectOpened(project: Project) {
-                val basePath = project.basePath?.let { Path.of(it) } ?: return
-                registerOpenWorktree(basePath, project)
-            }
-
-            override fun projectClosed(project: Project) {
-                val basePath = project.basePath?.let { Path.of(it) } ?: return
-                unregisterWorktree(basePath)
-            }
-        })
-
-        // Register already open projects
-        ProjectManager.getInstance().openProjects.forEach { project ->
-            val basePath = project.basePath?.let { Path.of(it) } ?: return@forEach
-            registerOpenWorktree(basePath, project)
-        }
-    }
 
     override fun registerOpenWorktree(path: Path, project: Project) {
         openWorktrees[path] = project

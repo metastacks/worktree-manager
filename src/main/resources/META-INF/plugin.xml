@@ -21,6 +21,10 @@
         <projectViewNodeDecorator
             implementation="org.metastacks.worktree.ui.WorktreeProjectNameDecorator"/>
 
+        <!-- Project startup activity for tracking open worktrees -->
+        <postStartupActivity
+            implementation="org.metastacks.worktree.services.WorktreeProjectActivity"/>
+
         <!-- Settings configurable under Version Control -->
         <projectConfigurable
             parentId="vcs"

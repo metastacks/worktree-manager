@@ -327,7 +327,7 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
     private fun removeVcsMapping(worktreePath: Path) {
         try {
             val vcsManager = ProjectLevelVcsManager.getInstance(project)
-            val currentMappings = vcsManager.directoryMappings
+            val currentMappings = vcsManager.getDirectoryMappings()
             val pathString = worktreePath.toString()
 
             // Filter out any mappings that point to the removed worktree
@@ -338,7 +338,7 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
             }
 
             if (updatedMappings.size != currentMappings.size) {
-                vcsManager.directoryMappings = updatedMappings
+                vcsManager.setDirectoryMappings(updatedMappings)
                 logger.info("Removed VCS mapping for worktree: $pathString")
             }
         } catch (e: Exception) {
