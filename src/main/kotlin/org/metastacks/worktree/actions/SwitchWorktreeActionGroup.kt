@@ -93,10 +93,8 @@ class SwitchToWorktreeAction(
         }
 
         // Open the worktree project
-        val options = OpenProjectTask {
-            forceOpenInNewFrame = true
-            projectToClose = null
-        }
+        val options = OpenProjectTask.build()
+            .withForceOpenInNewFrame(true)
         ProjectUtil.openOrImport(worktree.path, options)
     }
 

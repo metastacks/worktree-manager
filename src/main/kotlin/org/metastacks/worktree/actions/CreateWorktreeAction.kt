@@ -55,10 +55,8 @@ class CreateWorktreeAction : AnAction(), DumbAware {
     }
 
     private fun openProject(path: String) {
-        val options = OpenProjectTask {
-            forceOpenInNewFrame = true
-            projectToClose = null
-        }
+        val options = OpenProjectTask.build()
+            .withForceOpenInNewFrame(true)
         ProjectUtil.openOrImport(Path.of(path), options)
     }
 }

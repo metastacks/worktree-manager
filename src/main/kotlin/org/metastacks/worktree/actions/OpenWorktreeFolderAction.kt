@@ -37,10 +37,8 @@ class OpenWorktreeFolderAction : AnAction(), DumbAware {
         }
 
         // Open the worktree in a new window
-        val options = OpenProjectTask {
-            forceOpenInNewFrame = true
-            projectToClose = null
-        }
+        val options = OpenProjectTask.build()
+            .withForceOpenInNewFrame(true)
         ProjectUtil.openOrImport(dirPath, options)
     }
 
