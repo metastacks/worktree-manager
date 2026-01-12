@@ -1,4 +1,4 @@
-package com.github.ccustine.worktree.services
+package org.metastacks.worktree.services
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project

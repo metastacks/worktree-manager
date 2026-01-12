@@ -1,8 +1,8 @@
-package com.github.ccustine.worktree.actions
+package org.metastacks.worktree.actions
 
-import com.github.ccustine.worktree.services.WorktreeInfo
-import com.github.ccustine.worktree.services.WorktreeService
-import com.github.ccustine.worktree.services.WorktreeWindowService
+import org.metastacks.worktree.services.WorktreeInfo
+import org.metastacks.worktree.services.WorktreeService
+import org.metastacks.worktree.services.WorktreeWindowService
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent

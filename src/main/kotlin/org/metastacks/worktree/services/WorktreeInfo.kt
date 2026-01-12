@@ -1,4 +1,4 @@
-package com.github.ccustine.worktree.services
+package org.metastacks.worktree.services
 
 import java.nio.file.Path
 

@@ -15,7 +15,7 @@ A JetBrains IntelliJ IDEA plugin for managing git worktrees from within the IDE.
 - **Language:** Kotlin
 - **Build:** Gradle with `org.jetbrains.intellij.platform` plugin 2.x
 - **Target:** IntelliJ IDEA 2025.1+
-- **Plugin ID:** `com.github.ccustine.worktree-manager`
+- **Plugin ID:** `org.metastacks.worktree-manager`
 
 ## Project Structure
 
@@ -26,7 +26,7 @@ worktree_idea/
 ├── gradle.properties
 ├── src/main/
 │   ├── kotlin/
-│   │   └── com/github/ccustine/worktree/
+│   │   └── org/metastacks/worktree/
 │   │       ├── actions/         # Menu actions
 │   │       ├── services/        # Git worktree operations
 │   │       ├── ui/              # Dialogs

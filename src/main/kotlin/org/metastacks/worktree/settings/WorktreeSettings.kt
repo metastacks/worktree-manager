@@ -1,4 +1,4 @@
-package com.github.ccustine.worktree.settings
+package org.metastacks.worktree.settings
 
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service

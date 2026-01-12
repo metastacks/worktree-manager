@@ -1,4 +1,4 @@
-package com.github.ccustine.worktree.services
+package org.metastacks.worktree.services
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
@@ -364,11 +364,11 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
 
     override fun getDefaultWorktreePath(branchName: String): Path? {
         val mainPath = getMainRepositoryPath() ?: return null
-        val settings = com.github.ccustine.worktree.settings.WorktreeSettings.getInstance(project)
+        val settings = org.metastacks.worktree.settings.WorktreeSettings.getInstance(project)
         val configuredDir = settings.defaultWorktreeDirectory
         // Use .worktrees as fallback if setting is empty or blank
         val worktreeDir = if (configuredDir.isNullOrBlank()) {
-            com.github.ccustine.worktree.settings.WorktreeSettings.DEFAULT_WORKTREE_DIRECTORY
+            org.metastacks.worktree.settings.WorktreeSettings.DEFAULT_WORKTREE_DIRECTORY
         } else {
             configuredDir
         }

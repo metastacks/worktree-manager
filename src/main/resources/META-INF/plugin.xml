@@ -1,7 +1,7 @@
 <idea-plugin>
-    <id>com.github.ccustine.worktree-manager</id>
+    <id>org.metastacks.worktree-manager</id>
     <name>Worktree Manager</name>
-    <vendor email="ccustine@github.com" url="https://github.com/ccustine">ccustine</vendor>
+    <vendor email="support@metastacks.org" url="https://github.com/metastacks">Metastacks LLC</vendor>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>Git4Idea</depends>
@@ -9,23 +9,23 @@
     <extensions defaultExtensionNs="com.intellij">
         <!-- Project-level service for worktree operations -->
         <projectService
-            serviceInterface="com.github.ccustine.worktree.services.WorktreeService"
-            serviceImplementation="com.github.ccustine.worktree.services.WorktreeServiceImpl"/>
+            serviceInterface="org.metastacks.worktree.services.WorktreeService"
+            serviceImplementation="org.metastacks.worktree.services.WorktreeServiceImpl"/>
 
         <!-- Application-level service for tracking open worktree windows -->
         <applicationService
-            serviceInterface="com.github.ccustine.worktree.services.WorktreeWindowService"
-            serviceImplementation="com.github.ccustine.worktree.services.WorktreeWindowServiceImpl"/>
+            serviceInterface="org.metastacks.worktree.services.WorktreeWindowService"
+            serviceImplementation="org.metastacks.worktree.services.WorktreeWindowServiceImpl"/>
 
         <!-- Project name decorator for worktree indicator -->
         <projectViewNodeDecorator
-            implementation="com.github.ccustine.worktree.ui.WorktreeProjectNameDecorator"/>
+            implementation="org.metastacks.worktree.ui.WorktreeProjectNameDecorator"/>
 
         <!-- Settings configurable under Version Control -->
         <projectConfigurable
             parentId="vcs"
-            instance="com.github.ccustine.worktree.settings.WorktreeConfigurable"
-            id="com.github.ccustine.worktree.settings"
+            instance="org.metastacks.worktree.settings.WorktreeConfigurable"
+            id="org.metastacks.worktree.settings"
             displayName="Worktree Manager"/>
     </extensions>
 
@@ -45,24 +45,24 @@
                           anchor="last"/>
 
             <action id="WorktreeManager.Create"
-                    class="com.github.ccustine.worktree.actions.CreateWorktreeAction"
+                    class="org.metastacks.worktree.actions.CreateWorktreeAction"
                     text="Create Worktree..."
                     description="Create a new git worktree"/>
 
             <action id="WorktreeManager.Open"
-                    class="com.github.ccustine.worktree.actions.OpenWorktreeAction"
+                    class="org.metastacks.worktree.actions.OpenWorktreeAction"
                     text="Open Worktree..."
                     description="Open an existing worktree in a new window"/>
 
             <action id="WorktreeManager.Remove"
-                    class="com.github.ccustine.worktree.actions.RemoveWorktreeAction"
+                    class="org.metastacks.worktree.actions.RemoveWorktreeAction"
                     text="Remove Worktree..."
                     description="Remove an existing worktree"/>
 
             <separator/>
 
             <group id="WorktreeManager.SwitchGroup"
-                   class="com.github.ccustine.worktree.actions.SwitchWorktreeActionGroup"
+                   class="org.metastacks.worktree.actions.SwitchWorktreeActionGroup"
                    text="Switch to Worktree"
                    description="Switch to another worktree"
                    popup="true"/>
@@ -70,7 +70,7 @@
 
         <!-- Top-level context menu actions for worktree folders -->
         <action id="WorktreeManager.OpenFolder"
-                class="com.github.ccustine.worktree.actions.OpenWorktreeFolderAction"
+                class="org.metastacks.worktree.actions.OpenWorktreeFolderAction"
                 text="Open Worktree in New Window"
                 description="Open this worktree in a new IDE window"
                 icon="AllIcons.Actions.OpenNewTab">
@@ -78,7 +78,7 @@
         </action>
 
         <action id="WorktreeManager.RemoveFolder"
-                class="com.github.ccustine.worktree.actions.RemoveWorktreeFolderAction"
+                class="org.metastacks.worktree.actions.RemoveWorktreeFolderAction"
                 text="Remove Worktree"
                 description="Remove this worktree"
                 icon="AllIcons.Actions.GC">

@@ -1,6 +1,6 @@
-package com.github.ccustine.worktree.ui
+package org.metastacks.worktree.ui
 
-import com.github.ccustine.worktree.services.WorktreeService
+import org.metastacks.worktree.services.WorktreeService
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper

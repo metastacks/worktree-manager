@@ -1,7 +1,7 @@
-package com.github.ccustine.worktree.ui
+package org.metastacks.worktree.ui
 
-import com.github.ccustine.worktree.services.WorktreeInfo
-import com.github.ccustine.worktree.services.WorktreeService
+import org.metastacks.worktree.services.WorktreeInfo
+import org.metastacks.worktree.services.WorktreeService
 import com.intellij.icons.AllIcons
 import com.intellij.ide.projectView.PresentationData
 import com.intellij.ide.projectView.ProjectViewNode

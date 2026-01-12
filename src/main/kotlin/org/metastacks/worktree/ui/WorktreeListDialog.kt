@@ -1,7 +1,7 @@
-package com.github.ccustine.worktree.ui
+package org.metastacks.worktree.ui
 
-import com.github.ccustine.worktree.services.WorktreeInfo
-import com.github.ccustine.worktree.services.WorktreeWindowService
+import org.metastacks.worktree.services.WorktreeInfo
+import org.metastacks.worktree.services.WorktreeWindowService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.ui.ColoredTableCellRenderer
