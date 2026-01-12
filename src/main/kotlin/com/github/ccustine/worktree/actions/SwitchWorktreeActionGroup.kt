@@ -6,6 +6,7 @@ import com.github.ccustine.worktree.services.WorktreeWindowService
 import com.intellij.ide.impl.OpenProjectTask
 import com.intellij.ide.impl.ProjectUtil
 import com.intellij.openapi.actionSystem.ActionGroup
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAware
@@ -27,16 +28,18 @@ class SwitchWorktreeActionGroup : ActionGroup(), DumbAware {
         }
 
         val service = WorktreeService.getInstance(project)
-        val worktrees = service.listWorktrees()
+        // Use cached worktrees to avoid blocking
+        val worktrees = service.getCachedWorktrees() ?: return emptyArray()
 
         if (worktrees.size <= 1) {
             return emptyArray()
         }
 
-        val currentPath = project.basePath?.let { Path.of(it) }
+        val currentPath = project.basePath?.let { Path.of(it).toAbsolutePath().normalize() }
 
         return worktrees.map { worktree ->
-            SwitchToWorktreeAction(worktree, isCurrent = worktree.path == currentPath)
+            val worktreePath = worktree.path.toAbsolutePath().normalize()
+            SwitchToWorktreeAction(worktree, isCurrent = worktreePath == currentPath)
         }.toTypedArray()
     }
 
@@ -46,11 +49,16 @@ class SwitchWorktreeActionGroup : ActionGroup(), DumbAware {
 
         if (hasRepo) {
             val service = WorktreeService.getInstance(project!!)
-            val worktrees = service.listWorktrees()
-            e.presentation.isEnabledAndVisible = worktrees.size > 1
+            // Use cached worktrees to avoid blocking on BGT
+            val worktrees = service.getCachedWorktrees()
+            e.presentation.isEnabledAndVisible = worktrees != null && worktrees.size > 1
         } else {
             e.presentation.isEnabledAndVisible = false
         }
+    }
+
+    override fun getActionUpdateThread(): ActionUpdateThread {
+        return ActionUpdateThread.BGT
     }
 
     private fun hasGitRepository(project: Project): Boolean {
@@ -65,6 +73,10 @@ class SwitchToWorktreeAction(
     private val worktree: WorktreeInfo,
     private val isCurrent: Boolean
 ) : AnAction(worktree.displayName), DumbAware {
+
+    override fun getActionUpdateThread(): ActionUpdateThread {
+        return ActionUpdateThread.BGT
+    }
 
     override fun actionPerformed(e: AnActionEvent) {
         if (isCurrent) return

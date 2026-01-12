@@ -5,6 +5,7 @@ import com.github.ccustine.worktree.services.WorktreeWindowService
 import com.github.ccustine.worktree.ui.WorktreeListDialog
 import com.intellij.ide.impl.OpenProjectTask
 import com.intellij.ide.impl.ProjectUtil
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAware
@@ -58,6 +59,10 @@ class OpenWorktreeAction : AnAction(), DumbAware {
     override fun update(e: AnActionEvent) {
         val project = e.project
         e.presentation.isEnabledAndVisible = project != null && hasGitRepository(project)
+    }
+
+    override fun getActionUpdateThread(): ActionUpdateThread {
+        return ActionUpdateThread.BGT
     }
 
     private fun hasGitRepository(project: Project): Boolean {

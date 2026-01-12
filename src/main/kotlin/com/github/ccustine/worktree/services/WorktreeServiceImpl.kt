@@ -347,13 +347,14 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
     }
 
     override fun getWorktreeInfo(path: Path): WorktreeInfo? {
-        return listWorktrees().find { it.path == path }
+        val normalizedPath = path.toAbsolutePath().normalize()
+        return listWorktrees().find { it.path.toAbsolutePath().normalize() == normalizedPath }
     }
 
     override fun isWorktree(): Boolean {
-        val projectPath = project.basePath?.let { Path.of(it) } ?: return false
+        val projectPath = project.basePath?.let { Path.of(it).toAbsolutePath().normalize() } ?: return false
         val worktrees = listWorktrees()
-        val currentWorktree = worktrees.find { it.path == projectPath }
+        val currentWorktree = worktrees.find { it.path.toAbsolutePath().normalize() == projectPath }
         return currentWorktree != null && !currentWorktree.isMain
     }
 

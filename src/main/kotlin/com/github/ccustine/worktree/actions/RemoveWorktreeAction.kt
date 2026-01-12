@@ -4,6 +4,7 @@ import com.github.ccustine.worktree.services.WorktreeInfo
 import com.github.ccustine.worktree.services.WorktreeService
 import com.github.ccustine.worktree.services.WorktreeWindowService
 import com.github.ccustine.worktree.ui.WorktreeListDialog
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAware
@@ -58,7 +59,7 @@ class RemoveWorktreeAction : AnAction(), DumbAware {
 
             for (selectedWorktree in selectedWorktrees) {
                 // Safety checks
-                if (!performSafetyChecks(project, selectedWorktree, windowService)) {
+                if (!performSafetyChecks(project, selectedWorktree, windowService, service)) {
                     continue
                 }
 
@@ -92,7 +93,8 @@ class RemoveWorktreeAction : AnAction(), DumbAware {
     private fun performSafetyChecks(
         project: Project,
         worktree: WorktreeInfo,
-        windowService: WorktreeWindowService
+        windowService: WorktreeWindowService,
+        worktreeService: WorktreeService
     ): Boolean {
         // Check if worktree is open in another window
         if (windowService.isWorktreeOpen(worktree.path)) {
@@ -104,8 +106,9 @@ class RemoveWorktreeAction : AnAction(), DumbAware {
             return false
         }
 
-        // Check for uncommitted changes
-        if (worktree.isDirty) {
+        // Check for uncommitted changes (fetch real-time status)
+        val hasUncommittedChanges = worktreeService.hasUncommittedChanges(worktree.path)
+        if (hasUncommittedChanges) {
             val proceed = Messages.showYesNoDialog(
                 project,
                 "This worktree has uncommitted changes.\nAre you sure you want to remove it?",
@@ -119,8 +122,9 @@ class RemoveWorktreeAction : AnAction(), DumbAware {
             }
         }
 
-        // Check for unpushed commits
-        if (worktree.hasUnpushedCommits) {
+        // Check for unpushed commits (fetch real-time status)
+        val hasUnpushedCommits = worktreeService.hasUnpushedCommits(worktree.path)
+        if (hasUnpushedCommits) {
             val proceed = Messages.showYesNoDialog(
                 project,
                 "This worktree has unpushed commits.\nAre you sure you want to remove it?",
@@ -140,6 +144,10 @@ class RemoveWorktreeAction : AnAction(), DumbAware {
     override fun update(e: AnActionEvent) {
         val project = e.project
         e.presentation.isEnabledAndVisible = project != null && hasGitRepository(project)
+    }
+
+    override fun getActionUpdateThread(): ActionUpdateThread {
+        return ActionUpdateThread.BGT
     }
 
     private fun hasGitRepository(project: Project): Boolean {

@@ -1,12 +1,14 @@
 package com.github.ccustine.worktree.services
 
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.project.ProjectManagerListener
+import com.intellij.openapi.util.Disposer
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
 
-class WorktreeWindowServiceImpl : WorktreeWindowService {
+class WorktreeWindowServiceImpl : WorktreeWindowService, Disposable {
 
     private val openWorktrees = ConcurrentHashMap<Path, Project>()
 
@@ -55,13 +57,28 @@ class WorktreeWindowServiceImpl : WorktreeWindowService {
     }
 
     override fun getOpenWorktreeProject(path: Path): Project? {
-        val project = openWorktrees[path] ?: return null
-        return if (!project.isDisposed) project else null
+        val normalizedPath = path.toAbsolutePath().normalize()
+        // First check our cache with normalized path
+        val project = openWorktrees.entries.find {
+            it.key.toAbsolutePath().normalize() == normalizedPath
+        }?.value
+        if (project != null && !project.isDisposed) {
+            return project
+        }
+        // Fall back to checking open projects directly
+        return ProjectManager.getInstance().openProjects.find { proj ->
+            val projectPath = proj.basePath?.let { Path.of(it).toAbsolutePath().normalize() }
+            projectPath == normalizedPath && !proj.isDisposed
+        }
     }
 
     override fun getOpenWorktrees(): Set<Path> {
         // Clean up disposed projects
         openWorktrees.entries.removeIf { it.value.isDisposed }
         return openWorktrees.keys.toSet()
+    }
+
+    override fun dispose() {
+        openWorktrees.clear()
     }
 }
