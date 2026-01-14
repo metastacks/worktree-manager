@@ -3,7 +3,9 @@ package org.metastacks.worktree.services
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
+import com.intellij.serviceContainer.AlreadyDisposedException
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vcs.ProjectLevelVcsManager
@@ -41,6 +43,78 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
 
     companion object {
         private const val CACHE_TTL_MS = 5000L // 5 seconds
+
+        /**
+         * Parses the output of `git worktree list --porcelain` into WorktreeInfo objects.
+         * Made internal for testing.
+         */
+        internal fun parseWorktreeList(output: List<String>): List<WorktreeInfo> {
+            val worktrees = mutableListOf<WorktreeInfo>()
+            var currentPath: Path? = null
+            var currentBranch: String? = null
+            var currentCommit: String? = null
+            var isMain = false
+
+            for (line in output) {
+                when {
+                    line.startsWith("worktree ") -> {
+                        // Save previous worktree if exists
+                        currentPath?.let { path ->
+                            currentCommit?.let { commit ->
+                                worktrees.add(
+                                    WorktreeInfo(
+                                        path = path,
+                                        branch = currentBranch,
+                                        commitHash = commit,
+                                        isMain = isMain,
+                                        isDirty = false,
+                                        hasUnpushedCommits = false
+                                    )
+                                )
+                            }
+                        }
+                        // Start new worktree
+                        currentPath = Path.of(line.substringAfter("worktree "))
+                        currentBranch = null
+                        currentCommit = null
+                        isMain = false
+                    }
+                    line.startsWith("HEAD ") -> {
+                        currentCommit = line.substringAfter("HEAD ")
+                    }
+                    line.startsWith("branch ") -> {
+                        currentBranch = line.substringAfter("branch refs/heads/")
+                    }
+                    line == "bare" -> {
+                        isMain = true
+                    }
+                    line.isEmpty() -> {
+                        // End of worktree entry - first one is usually the main worktree
+                        if (worktrees.isEmpty()) {
+                            isMain = true
+                        }
+                    }
+                }
+            }
+
+            // Don't forget the last worktree
+            currentPath?.let { path ->
+                currentCommit?.let { commit ->
+                    worktrees.add(
+                        WorktreeInfo(
+                            path = path,
+                            branch = currentBranch,
+                            commitHash = commit,
+                            isMain = isMain || worktrees.isEmpty(),
+                            isDirty = false,
+                            hasUnpushedCommits = false
+                        )
+                    )
+                }
+            }
+
+            return worktrees
+        }
     }
 
     /**
@@ -61,6 +135,11 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
 
     private fun runGitCommand(workDir: VirtualFile, command: GitCommand, vararg args: String): Pair<Boolean, List<String>> {
         return runInBackground {
+            // Check if project is disposed before running command
+            if (project.isDisposed) {
+                return@runInBackground Pair(false, listOf("Project is disposed"))
+            }
+
             val handler = GitLineHandler(project, workDir, command)
             handler.addParameters(*args)
 
@@ -72,6 +151,12 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
                     logger.warn("Git command failed: ${result.errorOutputAsJoinedString}")
                     Pair(false, result.errorOutput)
                 }
+            } catch (e: ProcessCanceledException) {
+                // Control-flow exception - must be rethrown, not logged
+                throw e
+            } catch (e: AlreadyDisposedException) {
+                // Control-flow exception - must be rethrown, not logged
+                throw e
             } catch (e: Exception) {
                 logger.error("Failed to execute git command", e)
                 Pair(false, listOf(e.message ?: "Unknown error"))
@@ -115,6 +200,8 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
     }
 
     private fun refreshWorktreeCache(): List<WorktreeInfo> {
+        if (project.isDisposed) return emptyList()
+
         val repository = repositoryManager.repositories.firstOrNull() ?: return emptyList()
         val root = repository.root
 
@@ -129,8 +216,12 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
     }
 
     private fun refreshWorktreeCacheAsync() {
+        if (project.isDisposed) return
+
         ApplicationManager.getApplication().executeOnPooledThread {
-            refreshWorktreeCache()
+            if (!project.isDisposed) {
+                refreshWorktreeCache()
+            }
         }
     }
 
@@ -141,89 +232,25 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
         worktreeCache.set(null)
     }
 
-    private fun parseWorktreeList(output: List<String>): List<WorktreeInfo> {
-        val worktrees = mutableListOf<WorktreeInfo>()
-        var currentPath: Path? = null
-        var currentBranch: String? = null
-        var currentCommit: String? = null
-        var isMain = false
-
-        for (line in output) {
-            when {
-                line.startsWith("worktree ") -> {
-                    // Save previous worktree if exists
-                    currentPath?.let { path ->
-                        currentCommit?.let { commit ->
-                            worktrees.add(
-                                WorktreeInfo(
-                                    path = path,
-                                    branch = currentBranch,
-                                    commitHash = commit,
-                                    isMain = isMain,
-                                    // Don't block on status checks - default to false
-                                    // Status will be populated asynchronously if needed
-                                    isDirty = false,
-                                    hasUnpushedCommits = false
-                                )
-                            )
-                        }
-                    }
-                    // Start new worktree
-                    currentPath = Path.of(line.substringAfter("worktree "))
-                    currentBranch = null
-                    currentCommit = null
-                    isMain = false
-                }
-                line.startsWith("HEAD ") -> {
-                    currentCommit = line.substringAfter("HEAD ")
-                }
-                line.startsWith("branch ") -> {
-                    currentBranch = line.substringAfter("branch refs/heads/")
-                }
-                line == "bare" -> {
-                    isMain = true
-                }
-                line.isEmpty() -> {
-                    // End of worktree entry - first one is usually the main worktree
-                    if (worktrees.isEmpty()) {
-                        isMain = true
-                    }
-                }
-            }
-        }
-
-        // Don't forget the last worktree
-        currentPath?.let { path ->
-            currentCommit?.let { commit ->
-                worktrees.add(
-                    WorktreeInfo(
-                        path = path,
-                        branch = currentBranch,
-                        commitHash = commit,
-                        isMain = isMain || worktrees.isEmpty(),
-                        // Don't block on status checks - default to false
-                        isDirty = false,
-                        hasUnpushedCommits = false
-                    )
-                )
-            }
-        }
-
-        return worktrees
-    }
 
     // Internal check methods that don't trigger cache
     private fun checkUncommittedChanges(path: Path): Boolean {
         if (!path.exists() || !path.isDirectory()) return false
+        if (project.isDisposed) return false
         val vFile = pathToVirtualFile(path) ?: return false
 
         return runInBackground {
+            if (project.isDisposed) return@runInBackground false
             val handler = GitLineHandler(project, vFile, GitCommand.STATUS)
             handler.addParameters("--porcelain")
 
             try {
                 val result = git.runCommand(handler)
                 result.success() && result.output.isNotEmpty()
+            } catch (e: ProcessCanceledException) {
+                throw e
+            } catch (e: AlreadyDisposedException) {
+                throw e
             } catch (e: Exception) {
                 false
             }
@@ -232,15 +259,21 @@ class WorktreeServiceImpl(private val project: Project) : WorktreeService, Dispo
 
     private fun checkUnpushedCommits(path: Path): Boolean {
         if (!path.exists() || !path.isDirectory()) return false
+        if (project.isDisposed) return false
         val vFile = pathToVirtualFile(path) ?: return false
 
         return runInBackground {
+            if (project.isDisposed) return@runInBackground false
             val handler = GitLineHandler(project, vFile, GitCommand.LOG)
             handler.addParameters("@{u}..HEAD", "--oneline")
 
             try {
                 val result = git.runCommand(handler)
                 result.success() && result.output.isNotEmpty()
+            } catch (e: ProcessCanceledException) {
+                throw e
+            } catch (e: AlreadyDisposedException) {
+                throw e
             } catch (e: Exception) {
                 false
             }

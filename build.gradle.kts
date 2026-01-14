@@ -82,6 +82,14 @@ intellijPlatform {
         """.trimIndent()
 
         changeNotes = """
+            <h3>0.1.4</h3>
+            <ul>
+                <li>Added unit tests for WorktreeInfo data class and git worktree output parsing</li>
+            </ul>
+            <h3>0.1.3</h3>
+            <ul>
+                <li>Replace deprecated APIs with modern alternatives</li>
+            </ul>
             <h3>0.1.2</h3>
             <ul>
                 <li>Refactored package hierarchy to org.metastacks</li>
