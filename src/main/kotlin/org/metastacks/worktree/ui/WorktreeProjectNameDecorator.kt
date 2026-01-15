@@ -6,8 +6,10 @@ import com.intellij.icons.AllIcons
 import com.intellij.ide.projectView.PresentationData
 import com.intellij.ide.projectView.ProjectViewNode
 import com.intellij.ide.projectView.ProjectViewNodeDecorator
+import com.intellij.packageDependencies.ui.PackageDependenciesNode
 import com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode
 import com.intellij.openapi.project.Project
+import com.intellij.ui.ColoredTreeCellRenderer
 import com.intellij.ui.JBColor
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.util.IconUtil
@@ -58,6 +60,11 @@ class WorktreeProjectNameDecorator : ProjectViewNodeDecorator {
         if (directoryPath == projectPath) {
             decorateProjectRoot(data, worktrees, projectPath)
         }
+    }
+
+    @Deprecated("Deprecated in ProjectViewNodeDecorator")
+    override fun decorate(node: PackageDependenciesNode?, cellRenderer: ColoredTreeCellRenderer?) {
+        // Intentionally empty - deprecated API not used
     }
 
     private fun decorateWorktreeDirectory(data: PresentationData, worktree: WorktreeInfo) {
