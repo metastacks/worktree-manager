@@ -82,6 +82,10 @@ intellijPlatform {
         """.trimIndent()
 
         changeNotes = """
+            <h3>0.1.6</h3>
+            <ul>
+                <li>Updated .gitignore with plugin signing credential patterns</li>
+            </ul>
             <h3>0.1.4</h3>
             <ul>
                 <li>Added unit tests for WorktreeInfo data class and git worktree output parsing</li>

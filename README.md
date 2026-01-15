@@ -6,7 +6,7 @@
 
 **Simple Git Worktree Manager for IntelliJ IDEA**
 
-[![JetBrains Plugin](https://img.shields.io/jetbrains/plugin/v/com.metastacks.worktree?label=JetBrains%20Marketplace)](https://plugins.jetbrains.com/plugin/com.metastacks.worktree)
+[![JetBrains Plugin](https://img.shields.io/jetbrains/plugin/v/29725-worktree-manager?label=JetBrains%20Marketplace)](https://plugins.jetbrains.com/plugin/29725-worktree-manager)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![IntelliJ IDEA](https://img.shields.io/badge/IntelliJ%20IDEA-2025.3+-blueviolet)](https://www.jetbrains.com/idea/)
 

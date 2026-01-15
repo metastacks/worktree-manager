@@ -25,3 +25,11 @@ logs/
 
 # Kotlin
 .kotlin/
+
+# Local configuration
+local.properties
+
+# Plugin signing credentials
+*.jks
+*.pem
+chain.crt
