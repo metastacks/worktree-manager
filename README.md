@@ -10,6 +10,17 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![IntelliJ IDEA](https://img.shields.io/badge/IntelliJ%20IDEA-2025.3+-blueviolet)](https://www.jetbrains.com/idea/)
 
+<a href="https://plugins.jetbrains.com/plugin/29725-worktree-manager">
+  <img src="https://img.shields.io/badge/Install-JetBrains%20Marketplace-orange?style=for-the-badge&logo=jetbrains" alt="Install from JetBrains Marketplace">
+</a>
+
+<div id="worktree-manager-install"></div>
+
+<script src="https://plugins.jetbrains.com/assets/scripts/mp-widget.js"></script>
+<script>
+  MarketplaceWidget.setupMarketplaceWidget('install', 29725, "#worktree-manager-install");
+</script>
+
 ---
 
 </div>
